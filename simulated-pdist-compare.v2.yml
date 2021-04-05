@@ -1,0 +1,8 @@
+# location for all generated files
+basename: simreads-compare
+
+output_dir: output.simreads-compare
+
+alphabet: "dna"
+ksize: [21,31,51]
+scaled: [1,100,1000]

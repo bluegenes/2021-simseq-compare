@@ -1,4 +1,4 @@
-name: pathcompare
+name: smash-compare
 channels:
   - conda-forge
   - bioconda
@@ -11,5 +11,5 @@ dependencies:
   - seaborn=0.11.0
   - pip
   - pip:
-    - git+https://github.com/dib-lab/sourmash@latest
+    - git+https://github.com/dib-lab/sourmash@latest # version 4.0+
     - dendropy==4.4.0
