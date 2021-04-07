@@ -14,6 +14,7 @@ out_dir = config["output_dir"]
 logs_dir = out_dir + "/logs"
 basename = config.get("basename", "simreads-compare")
 scaled = config["scaled"]
+ksize = config["ksize"]
 if not isinstance(scaled, list):
     config["scaled"] = [scaled]
 if not isinstance(ksize, list):
@@ -62,7 +63,7 @@ FASTA_TYPES = ["dnainput"]
 
 rule all: 
     input:
-        expand(os.path.join(out_dir, "compare", "{siminfo}.{fasta_type}.fastalist.txt", siminfo=simulation_info, fasta_type = FASTA_TYPES),
+        expand(os.path.join(out_dir, "compare", "{siminfo}.{fasta_type}.fastalist.txt"), siminfo=simulation_info, fasta_type=FASTA_TYPES),
         os.path.join(out_dir, "compare", f"{basename}.dnainput.csv.gz")
         #expand(os.path.join(out_dir, "compare", "{siminfo}.{fasta_type}.compare.csv.gz"), siminfo=simulation_info, fasta_type = FASTA_TYPES)
 
@@ -81,7 +82,7 @@ rule download_tsv:
 
 # extract & aggregate *just simulation info* from multiple tsv.xz files --> single csv file
 rule write_siminfo_filelist:
-    input: expand(ancient(os.path.join(out_dir,"data/{siminfo}.tsv.xz"), siminfo=simulation_info)
+    input: ancient(expand(os.path.join(out_dir,"data/{siminfo}.tsv.xz"), siminfo=simulation_info))
     output: os.path.join(out_dir, "data/simulation-info.filelist.txt")
     run: 
         with open(str(output), "w") as outF:
@@ -165,24 +166,24 @@ def make_param_str(ksizes, scaled):
     scaled = min(scaled) #take minimum value of scaled list
     return f"{ks},scaled={scaled},abund"
 
-rule sourmash_sketch_nucleotide_input:
+rule sourmash_sketch:
     input:
         ancient(os.path.join(out_dir, "data/simreads", "{siminfo}-seed{seed}-seq{seq}.fasta")),
     output:
         os.path.join(out_dir, "signatures", "{siminfo}-seed{seed}-seq{seq}.sig"),
     params:
-        sketch_params=make_param_str(config["ksize"], config["scaled"])
+        sketch_params=make_param_str(config["ksize"], config["scaled"]),
         signame = lambda w: f"{w.siminfo}-seed{w.seed}-seq{w.seq}"
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: attempt *1000,
         runtime=1200,
-    log: os.path.join(logs_dir, "sourmash_sketch_nucl_input", "{sample}.sketch.log")
-    benchmark: os.path.join(benchmarks_dir, "sourmash_sketch_nucl_input", "{sample}.sketch.benchmark")
+    log: os.path.join(logs_dir, "sourmash_sketch", "{siminfo}-seed{seed}-seq{seq}.sketch.log")
+    log: os.path.join(logs_dir, "sourmash_sketch", "{siminfo}-seed{seed}-seq{seq}.sketch.benchmark")
     conda: "envs/smash-compare.yml"
     shell:
         """
-        sourmash sketch dna {params.sketch_params} -o {output} --name {params.signame:q} {input} 2> {log}
+        sourmash sketch dna -p {params.sketch_params} -o {output} --name {params.signame:q} {input} 2> {log}
         """
 
 localrules: signames_to_file
@@ -197,13 +198,14 @@ rule signames_to_file:
 
 rule sourmash_compare:
     input:
-        simulation_info = ancient(os.path.join(out_dir,"data/{siminfo}.tsv.xz")),
+        #simulation_info = ancient(os.path.join(out_dir,"data/{siminfo}.tsv.xz")),
+        #simulation_info = os.path.join(out_dir, "data/simulation-info.csv.gz"),
         siglist = os.path.join(out_dir, "compare", "{siminfo}.dnainput.siglist.txt")
     output:
         os.path.join(out_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.compare.csv.gz"),
     params:
         sig_dir = os.path.join(out_dir, "signatures"),
-        scaled_cmd = "--scaled" + "--scaled ".join(config["scaled"])
+        scaled_cmd = " --scaled " + " --scaled ".join(map(str, config["scaled"]))
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: attempt *50000,
@@ -213,16 +215,16 @@ rule sourmash_compare:
     conda: "envs/smash-compare.yml"
     shell:
         """
-        python compare-paired-sequences.v2.py --simulation-csv {input.simulation_info} \
-               --siglist {input.siglist} --sig-dir {params.sig_dir} \
-               --alphabet {wildcards.alphabet} --ksize {wilcards.ksize} \
-               {params.scaled_cmd} --output-csv {output} > {log} 2&>1
+        python compare-paired-sequences.v2.py \
+               --siglist {input.siglist} --sigdir {params.sig_dir} \
+               --alphabet {wildcards.alphabet} --ksize {wildcards.ksize} \
+               {params.scaled_cmd} --output-csv {output} 2> {log}
         """
-
+ #--simreads-info-csv {input.simulation_info} \
 localrules: aggregate_sourmash_compare
 rule aggregate_sourmash_compare:
     input:
-        expand(os.path.join(out_dir, "compare", "{siminfo}.{alpha}-k{k}.dnainput.compare.csv.gz", siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
+        expand(os.path.join(out_dir, "compare", "{siminfo}.{alpha}-k{k}.dnainput.compare.csv.gz"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
     output:
         os.path.join(out_dir, "compare", "{basename}.dnainput.csv.gz")
     run:
