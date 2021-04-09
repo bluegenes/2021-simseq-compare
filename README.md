@@ -1,6 +1,5 @@
 # Evaluate sourmash distance estimation using simulated sequences
 
-_split from 2020-dist-compare_
 
 ## Simulated Sequences 
 
@@ -76,3 +75,5 @@ Each `simreads-compare*.csv.gz` file consists of the following columns:
   
 > Note that many of these columns can be regenerated from other columns, I just found them useful for plotting, comparisons, etc.
 > I may also upload csvs containing a pared down set of columns.
+
+_Note to self: this repo was split from 2020-dist-compare; version 1 analysis remains there._
