@@ -63,7 +63,7 @@ Each `simreads-compare*.csv.gz` file consists of the following columns:
 - `sig2_name` - comparison name with `-seq2`
 - `alphabet` - alphabet used for sketching (`nucleotide`/`dna`, `protein`, `dayhoff`, or `hp`)
 - `ksize` - kmer size used for sketching. Corresponds to the alphabet (k=21 for nucleotide is 21 nucleotides; k=7 for protein is 7 amino acids)
-- `scaled` - scaled value for this k-mer comparisons. Sketches were downsampled to this value prior to estimation
+- `scaled` - scaled value. Initial scaled=1 sketches were downsampled to this value for this comparison.
 - `jaccard` - `sourmash` estimate of the Jaccard Index
 - `max_containment` - `sourmash` estimate of Maximum Containment (maximum Containment Index between both Containment directions)
 - `sig1_containment` - `sourmash` estimate of the Containment Index for sig1
