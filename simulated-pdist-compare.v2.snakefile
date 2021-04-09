@@ -179,7 +179,7 @@ rule sourmash_sketch:
         mem_mb=lambda wildcards, attempt: attempt *1000,
         runtime=1200,
     log: os.path.join(logs_dir, "sourmash_sketch", "{siminfo}-seed{seed}-seq{seq}.sketch.log")
-    log: os.path.join(logs_dir, "sourmash_sketch", "{siminfo}-seed{seed}-seq{seq}.sketch.benchmark")
+    benchmark: os.path.join(logs_dir, "sourmash_sketch", "{siminfo}-seed{seed}-seq{seq}.sketch.benchmark")
     conda: "envs/smash-compare.yml"
     shell:
         """
