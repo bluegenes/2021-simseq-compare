@@ -37,39 +37,41 @@ I generated a single csv with all comparison names and the corresponding simulat
 
 ## Analysis Workflow
 
-Analysis workflow:
-  - Indels (`--`) were removed (adjacent sections were concatenated), and fasta files were written for each simulated sequence.
-  - For DNA comparisons:
-      - each fasta was sketched with sourmash v4.0, dna ksizes 21,31,51, scaled=1 (retains all unique k-mers)
+### Analysis workflow:
+- Indels (`--`) were removed (adjacent sections were concatenated), and fasta files were written for each simulated sequence.
+- For DNA comparisons:
+    - each fasta was sketched with sourmash v4.0, dna ksizes 21,31,51, scaled=1 (retains all unique k-mers)
+    - sketches from sequence pairs were compared using `compare-paired-sequences.v2.py` for each set of simulation parameters, for scaled values: [1,100,1000,2000]
+    - results from all simulation parameters were aggregated into a single results file, [simreads-compare.dnainput.csv.gz](https://osf.io/xn7vt/download)
+- For protein comparisons:
+    - PRODIGAL translation:
+      - each fasta was translated using PRODIGAL v2.6.3
+      - prodigal-translated reads were sketched with `sourmash sketch protein` in sourmash v4.0, with protein k-sizes 7-12, scaled=1 (retains all unique k-mers)
       - sketches from sequence pairs were compared using `compare-paired-sequences.v2.py` for each set of simulation parameters, for scaled values: [1,100,1000,2000]
-      - results from all simulation parameters were aggregated into a single results file, [simreads-compare.dnainput.csv.gz](https://osf.io/xn7vt/download)
-  - For protein comparisons:
-      - PRODIGAL translation:
-        - each fasta was translated using PRODIGAL v2.6.3
-        - prodigal-translated reads were sketched with `sourmash sketch protein` in sourmash v4.0, with protein k-sizes 7-12, scaled=1 (retains all unique k-mers)
-        - sketches from sequence pairs were compared using `compare-paired-sequences.v2.py` for each set of simulation parameters, for scaled values: [1,100,1000,2000]
-        - results from all simulation parameters were aggregated into a single results file, `simreads-compare.prodigal.csv.gz` (to be posted)
-      - 6-frame translation:
-        - DNA fastas were sketched with `sourmash sketch translate` (6-frame translation) in sourmash v4.0, with protein k-sizes 7-12, scaled=1 (retains all unique k-mers)
-        - sketches from sequence pairs were compared using `compare-paired-sequences.v2.py` for each set of simulation parameters, for scaled values: [1,100,1000,2000]
-        - results from all simulation parameters were aggregated into a single results file, `simreads-compare.translate.csv.gz` (to be posted)
+      - results from all simulation parameters were aggregated into a single results file, `simreads-compare.prodigal.csv.gz` (to be posted)
+    - 6-frame translation:
+      - DNA fastas were sketched with `sourmash sketch translate` (6-frame translation) in sourmash v4.0, with protein k-sizes 7-12, scaled=1 (retains all unique k-mers)
+      - sketches from sequence pairs were compared using `compare-paired-sequences.v2.py` for each set of simulation parameters, for scaled values: [1,100,1000,2000]
+      - results from all simulation parameters were aggregated into a single results file, `simreads-compare.translate.csv.gz` (to be posted)
 
-Results format:
-  Each `simreads-compare*.csv.gz` file consistes of the following columns:
-    - `comparison_name` - name containing all simulation information, e.g. `data-d0.05-f1-nogam-seed36`
-    - `sig1_name` - comparison name with `-seq1`
-    - `sig2_name` - comparison name with `-seq2`
-    - `alphabet` - alphabet used for sketching (`nucleotide`/`dna`, `protein`, `dayhoff`, or `hp`)
-    - `ksize` - kmer size used for sketching. Corresponds to the alphabet (k=21 for nucleotide is 21 nucleotides; k=7 for protein is 7 amino acids)
-    - `scaled` - scaled value for this k-mer comparisons. Sketches were downsampled to this value prior to estimation 
-    - `jaccard` - Jaccard Index
-    - `max_containment` - Maximum Containment (maximum Containment Index between both Containment directions)
-    - `sig1_containment` - Containment Index for sig1
-    - `sig2_containment` - Containment Index for sig2
-    - `sig1_hashes` - number of hashes for this sig **at this scaled value**
-    - `sig2_hashes` - number of hashes for this sig **at this scaled value**
-    - `num_common` - number of intersected hashes **at this scaled value**
-    - `alpha-ksize` - combined column for alphabet and ksize
+### Results format:
+
+Each `simreads-compare*.csv.gz` file consists of the following columns:
+
+- `comparison_name` - name containing all simulation information, e.g. `data-d0.05-f1-nogam-seed36`
+- `sig1_name` - comparison name with `-seq1`
+- `sig2_name` - comparison name with `-seq2`
+- `alphabet` - alphabet used for sketching (`nucleotide`/`dna`, `protein`, `dayhoff`, or `hp`)
+- `ksize` - kmer size used for sketching. Corresponds to the alphabet (k=21 for nucleotide is 21 nucleotides; k=7 for protein is 7 amino acids)
+- `scaled` - scaled value for this k-mer comparisons. Sketches were downsampled to this value prior to estimation 
+- `jaccard` - Jaccard Index
+- `max_containment` - Maximum Containment (maximum Containment Index between both Containment directions)
+- `sig1_containment` - Containment Index for sig1
+- `sig2_containment` - Containment Index for sig2
+- `sig1_hashes` - number of hashes for this sig **at this scaled value**
+- `sig2_hashes` - number of hashes for this sig **at this scaled value**
+- `num_common` - number of intersected hashes **at this scaled value**
+- `alpha-ksize` - combined column for alphabet and ksize
 
   
 > Note that many of these columns can be regenerated from other columns, I just found them useful for plotting, comparisons, etc.
