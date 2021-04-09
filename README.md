@@ -8,16 +8,17 @@ This repo uses a series of simulated sequences from [Criscuolo 2020](https://doi
 The simulated sequences are archived on [Zenodo](https://zenodo.org/record/4034462) and are nucleotide sequences containing "--" stretches to represent indels.
 Each fasta is provided in a column of a tsv.xz file with the simulation information included. As stated in the [Zenodo](https://zenodo.org/record/4034462) reference:
 
-```
+"""
 This repository contains 24,000 pairs of nucleotide sequences (and associated parameters) that have been simulated for testing alignment-free genome distance estimates. Given an evolutionary distance d varying from 0.05 to 1.00 nucleotide substitutions per character (step = 0.05), the program INDELible was used to simulate the evolution of 200 nucleotide sequence pairs with d substitution events per character under the models GTR and GTR+Γ. Each model was adjusted with three different equilibrium frequencies:
 
 f1: equal frequencies, i.e. freq(A) = freq(C) = freq(G) = freq(T) = 0.25,
 f2: GC-rich, i.e. freq(A) = 0.1, freq(C) = 0.3, freq(G) = 0.4, freq(T) = 0.2,
 f3: AT-rich, i.e. freq(A) = freq(T) = 0.4, freq(C) = freq(G) = 0.1.
 For each simulated sequence pair, model parameters (i.e. GTR: six relative rates of nucleotide substitution; GTR+Γ: six rates and one Γ shape parameter) were randomly drawn from 142 sets of parameters derived from real-case data (see file GTR.params.trees.tsv at https://zenodo.org/record/4034261). **Initial sequence length was 5 Mbs**, and an indel rate of 0.01 was set with indel length drawn from [1, 50000] according to a Zipf distribution with parameter 1.5 (see INDELible manual).
-```
+"""
 
-I used the following names:
+I used the following names to generate a unique name for each simulated pair of reads: `data-<DISTANCE>-<NUCL_SUBSTITUION>-<EVOLUTIONARY-MODEL>`
+  
   - Nucleotide Substitution:
     - f1
     - f2
@@ -30,8 +31,9 @@ I used the following names:
   - Seed value provided to INDELIBLE:
     - seedXX
 
-To generate a name for each simulation parameter: `data-<DISTANCE>-<NUCL_SUBSTITUION>-<EVOLUTIONARY-MODEL>`
 So, `data-d0.05-f1-nogam-seed36` represents a sequence simulation at 0.05 evolutonary distance, using equal frequence nucleotide substitution, without using a Γ shape parameter.
+
+I generated a single csv with all comparison names and the corresponding simulation info: [simreads-info.csv.gz](https://github.com/bluegenes/2021-simseq-compare/raw/main/simreads-info.csv.gz)
 
 ## Analysis Workflow
 
