@@ -38,20 +38,20 @@ I generated a single csv with all comparison names and the corresponding simulat
 
 ### Analysis workflow:
 - Indels (`--`) were removed (adjacent sections were concatenated), and fasta files were written for each simulated sequence.
-- For DNA comparisons:
+- **For DNA comparisons:**
     - each fasta was sketched with `sourmash v4.0`, dna ksizes `21`,`31`,`51`, scaled=`1` (retains all unique k-mers)
     - sketches from sequence pairs were compared using `compare-paired-sequences.v2.py` for each set of simulation parameters, for scaled values: `1`,`100`,`1000`,`2000`
-    - results from all simulation parameters were aggregated into a single results file, [simreads-compare.dnainput.csv.gz](https://osf.io/xn7vt/download)
-- For protein comparisons:
+    - **results** from all simulation parameters were aggregated into a single results file, [simreads-compare.dnainput.csv.gz](https://osf.io/xn7vt/download)
+- **For protein comparisons:**
     - PRODIGAL translation:
       - each fasta was translated using `PRODIGAL v2.6.3`
       - prodigal-translated reads were sketched with `sourmash sketch protein` in `sourmash v4.0`, with protein k-sizes `7-12`, scaled=`1` (retains all unique k-mers)
       - sketches from sequence pairs were compared using `compare-paired-sequences.v2.py` for each set of simulation parameters, for scaled values: `1`,`100`,`1000`,`2000`
-      - results from all simulation parameters were aggregated into a single results file, `simreads-compare.prodigal.csv.gz` (to be posted)
+      - **results** from all simulation parameters were aggregated into a single results file, `simreads-compare.prodigal.csv.gz` (to be posted)
     - 6-frame translation:
       - DNA fastas were sketched with `sourmash sketch translate` (6-frame translation) in `sourmash v4.0`, with protein k-sizes `7-12`, scaled=`1` (retains all unique k-mers)
       - sketches from sequence pairs were compared using `compare-paired-sequences.v2.py` for each set of simulation parameters, for scaled values: `1`,`100`,`1000`,`2000`
-      - results from all simulation parameters were aggregated into a single results file, `simreads-compare.translate.csv.gz` (to be posted)
+      - **results** from all simulation parameters were aggregated into a single results file, `simreads-compare.translate.csv.gz` (to be posted)
 
 ### Results format:
 
