@@ -63,14 +63,14 @@ Each `simreads-compare*.csv.gz` file consists of the following columns:
 - `sig2_name` - comparison name with `-seq2`
 - `alphabet` - alphabet used for sketching (`nucleotide`/`dna`, `protein`, `dayhoff`, or `hp`)
 - `ksize` - kmer size used for sketching. Corresponds to the alphabet (k=21 for nucleotide is 21 nucleotides; k=7 for protein is 7 amino acids)
-- `scaled` - scaled value for this k-mer comparisons. Sketches were downsampled to this value prior to estimation 
-- `jaccard` - Jaccard Index
-- `max_containment` - Maximum Containment (maximum Containment Index between both Containment directions)
-- `sig1_containment` - Containment Index for sig1
-- `sig2_containment` - Containment Index for sig2
-- `sig1_hashes` - number of hashes for this sig **at this scaled value**
-- `sig2_hashes` - number of hashes for this sig **at this scaled value**
-- `num_common` - number of intersected hashes **at this scaled value**
+- `scaled` - scaled value for this k-mer comparisons. Sketches were downsampled to this value prior to estimation
+- `jaccard` - `sourmash` estimate of the Jaccard Index
+- `max_containment` - `sourmash` estimate of Maximum Containment (maximum Containment Index between both Containment directions)
+- `sig1_containment` - `sourmash` estimate of the Containment Index for sig1
+- `sig2_containment` - `sourmash` estimate of the Containment Index for sig2
+- `sig1_hashes` - number of unique k-mers in sig1 sketch 
+- `sig2_hashes` - number of unique k-mers in sig2 sketch
+- `num_common` - number of intersected k-mers between sig1,sig2
 - `alpha-ksize` - combined column for alphabet and ksize
 
   
