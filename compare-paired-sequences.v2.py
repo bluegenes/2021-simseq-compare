@@ -28,7 +28,7 @@ def compare_sigs(sigA, sigB, comparison_name, alpha, ksize, scaled):
     intersect_numhashes = sigA.minhash.count_common(sigB.minhash)
     jaccard = sigA.jaccard(sigB)
     containA = sigA.contained_by(sigB)
-    containB = sigA.contained_by(sigA)
+    containB = sigB.contained_by(sigA)
     max_contain = sigA.max_containment(sigB)
     return CompareResult(comparison_name, str(sigA).split(" ")[0], str(sigB).split(" ")[0], alpha, ksize, scaled, jaccard, max_contain, containA, containB, sigA_numhashes, sigB_numhashes, intersect_numhashes)
 
