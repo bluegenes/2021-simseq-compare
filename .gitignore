@@ -1,2 +1,5 @@
 .snakemake
 output.*
+data
+.ipynb_checkpoints/
+*.csv.gz
