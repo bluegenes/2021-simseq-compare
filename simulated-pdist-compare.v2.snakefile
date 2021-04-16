@@ -64,7 +64,7 @@ FASTA_TYPES = ["dnainput"]
 rule all: 
     input:
         expand(os.path.join(out_dir, "compare", "{siminfo}.{fasta_type}.fastalist.txt"), siminfo=simulation_info, fasta_type=FASTA_TYPES),
-        os.path.join(out_dir, "compare", f"{basename}.dnainput.csv.gz")
+        os.path.join(out_dir, f"{basename}.dnainput.csv.gz")
         #expand(os.path.join(out_dir, "compare", "{siminfo}.{fasta_type}.compare.csv.gz"), siminfo=simulation_info, fasta_type = FASTA_TYPES)
 
 rule download_tsv:
@@ -226,7 +226,7 @@ rule aggregate_sourmash_compare:
     input:
         expand(os.path.join(out_dir, "compare", "{siminfo}.{alpha}-k{k}.dnainput.compare.csv.gz"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
     output:
-        os.path.join(out_dir, "compare", "{basename}.dnainput.csv.gz")
+        os.path.join(out_dir, "{basename}.dnainput.csv.gz")
     run:
         # aggreate all csv.gzs --> single csv
         aggDF = pd.concat([pd.read_csv(str(csv), sep=",") for csv in input])
