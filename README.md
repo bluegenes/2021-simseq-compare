@@ -1,5 +1,6 @@
 # Evaluate sourmash distance estimation using simulated sequences
 
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/bluegenes/2021-simseq-compare/main)
 
 ## Simulated Sequences 
 
