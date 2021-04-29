@@ -1,4 +1,4 @@
-## Running out these notebooks
+## Running these notebooks
 
 ## via binder:
 

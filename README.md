@@ -2,6 +2,9 @@
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/bluegenes/2021-simseq-compare/main)
 
+**click on the notebooks folder, then `002.test-mrcc.dna.ipynb`**
+
+
 ## Simulated Sequences 
 
 This repo uses a series of simulated sequences from [Criscuolo 2020](https://doi.org/10.12688/f1000research.26930.1) to evaluate distance estimation using sourmash.
