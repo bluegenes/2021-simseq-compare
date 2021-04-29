@@ -1,11 +1,21 @@
-name: simseq
+name: jlab-mrcc
 channels:
   - conda-forge
   - bioconda
+  - plotly
   - defaults
 dependencies:
-  - python=3.8
-  - snakemake=6.1.0
-  - pandas=1.2.3
-  - seaborn=0.11.0
-  - screed
+  # mutation-rate-intervals deps
+  - python>=3.6
+  - scipy=1.1.0
+  - numpy=1.12.1
+  - mpmath=1.0.0
+  - mmh3
+   # jupyterlab, notebook, plotly
+  - pandas
+  - seaborn
+  - jupyterlab
+  - pip
+  - pip: # install pkg version directly from github
+    #- git+https://github.com/KoslickiLab/mutation-rate-ci-calculator@master
+    - git+https://github.com/KoslickiLab/mutation-rate-ci-calculator@mahmudur
