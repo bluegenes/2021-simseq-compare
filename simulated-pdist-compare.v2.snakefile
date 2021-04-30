@@ -1,5 +1,10 @@
+"""
+Author: N Tessa Pierce, UC Davis Lab for Data Intensive Biology
+Usage: Compare distance estimation on pairs of unaligned nucleotide sequences
+Installation: mamba env install -f envs/simseq-env.yml; conda activate simseq
+Run: snakemake -s simulated-pdist-compare.v2.snakefile -n
+"""
 #####
-#Compare distance estimation on pairs of unaligned nucleotide sequences
 ####
 
 # download each tsv.xz 
