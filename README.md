@@ -1,5 +1,9 @@
 # Evaluate sourmash distance estimation using simulated sequences
 
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/bluegenes/2021-simseq-compare/main)
+
+**click on the notebooks folder, then `003.explore-mrcc.dna.ipynb`**
+
 
 ## Simulated Sequences 
 

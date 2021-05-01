@@ -3,3 +3,4 @@ output.*
 data
 .ipynb_checkpoints/
 *.csv.gz
+.DS_Store
