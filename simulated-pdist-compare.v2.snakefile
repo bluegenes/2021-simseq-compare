@@ -8,6 +8,7 @@
 # sketch each fasta
 # compare all fastas at each alpha-ksize
 # agg all alpha-ksize comparisons --> csv gz
+import pandas as pd
 
 configfile: "simulated-pdist-compare.v2.yml"
 out_dir = config["output_dir"]
