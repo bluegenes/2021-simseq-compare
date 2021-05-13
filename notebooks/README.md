@@ -4,7 +4,7 @@
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/bluegenes/2021-simseq-compare/main)
 
-Then go into the notebooks folder and run the `002.test-mrcc.dna.ipynb` notebook.
+Then go into the notebooks folder and click on the notebook you want to run.
 
 
 ## local installation:
