@@ -20,4 +20,5 @@ dependencies:
   - pip
   - pip: 
     #- git+https://github.com/KoslickiLab/mutation-rate-ci-calculator@master
-    - git+https://github.com/KoslickiLab/mutation-rate-ci-calculator@mahmudur
+    #- git+https://github.com/KoslickiLab/mutation-rate-ci-calculator@mahmudur
+    - git+https://github.com/bluegenes/mutation-rate-ci-calculator@fix_imports
