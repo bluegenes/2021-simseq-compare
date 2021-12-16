@@ -246,7 +246,7 @@ rule sourmash_compare_num:
         #simulation_info = os.path.join(out_dir, "data/simulation-info.csv.gz"),
         siglist = os.path.join(out_dir, "compare", "{siminfo}.dnainput.siglist.txt")
     output:
-        os.path.join(out_dir, "compare_num", "{siminfo}.{alphabet}-k{ksize}.dnainput.compare.num.csv.gz"),
+        os.path.join(out_dir, "compare_num", "{siminfo}.{alphabet}-k{ksize}.dnainput.compare.num.csv"),
     params:
         sig_dir = os.path.join(out_dir, "signatures"),
         num_cmd = " --num " + " --num ".join(map(str, config["num"]))
@@ -269,7 +269,7 @@ rule sourmash_compare_num:
 localrules: aggregate_sourmash_compare_num
 rule aggregate_sourmash_compare_num:
     input:
-        expand(os.path.join(out_dir, "compare_num", "{siminfo}.{alpha}-k{k}.dnainput.compare.num.csv.gz"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
+        expand(os.path.join(out_dir, "compare_num", "{siminfo}.{alpha}-k{k}.dnainput.compare.num.csv"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
     output:
         os.path.join(out_dir, "{basename}.dnainput.compare-num.csv.gz")
     run:

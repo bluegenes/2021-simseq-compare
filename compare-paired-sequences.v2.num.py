@@ -3,6 +3,7 @@ import sys
 import argparse
 import glob
 import pprint
+import csv
 
 import pandas as pd
 
@@ -59,54 +60,60 @@ def main(args):
 
     # get comparison list
     #names = list(compare_info["name"])
-    seq_comparisons = []
     num_vals = num
-    for n, comparison_name in enumerate(compare_names):
-        if n % 50 == 0:
-            print(f"... assessing {n}th pair, {name}\n")
-        # for paired simulated sequences, sigfiles should just be f"{name}-seq1" and f"{name}-seq2"
-        seq1_name = f"{comparison_name}-seq1"
-        seq2_name = f"{comparison_name}-seq2"
-        # select and load sigs
-        #selector = load_file_as_signatures(sigD[seq1_name], ksize=ksize, select_moltype=moltype)
-        #sig1 = next(selector)
-        #selector = load_file_as_signatures(sigD[seq2_name], ksize=ksize, select_moltype=moltype)
-        #sig2 = next(selector)
-        sig1 = load_one_signature(sigD[seq1_name], ksize=ksize, select_moltype=moltype)
-        sig2 = load_one_signature(sigD[seq2_name], ksize=ksize, select_moltype=moltype)
+    num_comparisons = len(compare_names)
+    output_fieldnames = NumCompareResult._fields # may need to be list?
+    with open(args.output_csv, 'w') as outF:
+        w = csv.DictWriter(outF, fieldnames=output_fieldnames)
 
-        sig1_hashvals = sig1.minhash.hashes.keys()
-        sig2_hashvals = sig2.minhash.hashes.keys()
-        sig1_name = str(sig1).split(" ")[0]
-        sig2_name = str(sig2).split(" ")[0]
+        for n, comparison_name in enumerate(compare_names):
+            if n % 10 == 0:
+                print(f"... assessing {n}th pair, {name} of {num_comparisons} total\n")
+            # for paired simulated sequences, sigfiles should just be f"{name}-seq1" and f"{name}-seq2"
+            seq1_name = f"{comparison_name}-seq1"
+            seq2_name = f"{comparison_name}-seq2"
+            # select and load sigs
+            #selector = load_file_as_signatures(sigD[seq1_name], ksize=ksize, select_moltype=moltype)
+            #sig1 = next(selector)
+            #selector = load_file_as_signatures(sigD[seq2_name], ksize=ksize, select_moltype=moltype)
+            #sig2 = next(selector)
+            sig1 = load_one_signature(sigD[seq1_name], ksize=ksize, select_moltype=moltype)
+            sig2 = load_one_signature(sigD[seq2_name], ksize=ksize, select_moltype=moltype)
 
-        minimum_hashes= min(len(sig1_hashvals), len(sig2_hashvals)) # can only compare at minimum num hashes between the two
+            sig1_hashvals = sig1.minhash.hashes.keys()
+            sig2_hashvals = sig2.minhash.hashes.keys()
+            sig1_name = str(sig1).split(" ")[0]
+            sig2_name = str(sig2).split(" ")[0]
 
-        ## if num is not specified, use original num
-        #if not num_vals:
-        #    num_vals=[orig_num]
+            minimum_hashes= min(len(sig1_hashvals), len(sig2_hashvals)) # can only compare at minimum num hashes between the two
 
-        # compare at each num val
-        for nu in num_vals:
-            if nu > minimum_hashes:
-                print(f"Desired num hashes {nu} is greater than the number of hashes in the original sig. Can't extract; Ignoring num {nu}...")
-                continue
-                # store signature info
-            # convert to num minhashes
-            mh1_num = sourmash.MinHash(n=nu, ksize=ksize)
-            mh2_num = sourmash.MinHash(n=nu, ksize=ksize)
-            mh1_num.add_many(sig1_hashvals)
-            mh2_num.add_many(sig2_hashvals)
+            ## if num is not specified, use original num
+            #if not num_vals:
+            #    num_vals=[orig_num]
 
-            comparison = compare_mh(mh1_num, mh2_num, sig1_name, sig2_name, comparison_name, nu, alphabet, ksize)
-            seq_comparisons.append(comparison)
+            # compare at each num val
+            seq_comparisons = []
+            for nu in num_vals:
+                if nu > minimum_hashes:
+                    print(f"Desired num hashes {nu} is greater than the number of hashes in the original sig. Can't extract; Ignoring num {nu}...")
+                    continue
+                    # store signature info
+                # convert to num minhashes
+                mh1_num = sourmash.MinHash(n=nu, ksize=ksize)
+                mh2_num = sourmash.MinHash(n=nu, ksize=ksize)
+                mh1_num.add_many(sig1_hashvals)
+                mh2_num.add_many(sig2_hashvals)
 
+                comparison = compare_mh(mh1_num, mh2_num, sig1_name, sig2_name, comparison_name, nu, alphabet, ksize)
+                seq_comparisons.append(comparison)
 
-    # convert path comparison info to pandas dataframe
-    comparisonDF = pd.DataFrame.from_records(seq_comparisons, columns = CompareResult._fields)
+            print(f"writing comparison {comparison_name}\n")
+            for c in seq_comparisons:
+                w.writerow(c._asdict())
+
 
     # print to csv
-    comparisonDF.to_csv(args.output_csv, index=False)
+    #comparisonDF.to_csv(args.output_csv, index=False)
     print(f"done! simread comparison info written to {args.output_csv}")
 
 def cmdline(sys_args):
