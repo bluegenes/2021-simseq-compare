@@ -56,13 +56,13 @@ f1_siminfo = expand("data-d{d}-f1-{model}", d = sim_distances, model=evolmodels)
 f2_siminfo = expand("data-d{d}-f2-{model}", d = sim_distances, model=evolmodels)
 f3_siminfo = expand("data-d{d}-f3-{model}", d = sim_distances, model=evolmodels)
 
-simulation_info = f1_siminfo + f2_siminfo + f3_siminfo
+simulation_info = f1_siminfo #+ f2_siminfo + f3_siminfo
 
 seedinfo =  { key: f1_seednums for key in f1_siminfo}
 f2_seedinfo =  { key: f2_seednums for key in f2_siminfo}
 f3_seedinfo =  { key: f3_seednums for key in f3_siminfo}
-seedinfo.update(f2_seedinfo)
-seedinfo.update(f3_seedinfo)
+#seedinfo.update(f2_seedinfo)
+#seedinfo.update(f3_seedinfo)
 
 # just do nucl input
 FASTA_TYPES = ["dnainput"]
@@ -70,7 +70,8 @@ FASTA_TYPES = ["dnainput"]
 rule all: 
     input:
         expand(os.path.join(out_dir, "compare", "{siminfo}.{fasta_type}.fastalist.txt"), siminfo=simulation_info, fasta_type=FASTA_TYPES),
-        os.path.join(out_dir, f"{basename}.dnainput.csv.gz")
+        #os.path.join(out_dir, f"{basename}.dnainput.csv.gz"),
+        os.path.join(out_dir, f"{basename}.dnainput.compare-num.csv.gz")
         #expand(os.path.join(out_dir, "compare", "{siminfo}.{fasta_type}.compare.csv.gz"), siminfo=simulation_info, fasta_type = FASTA_TYPES)
 
 rule download_tsv:
@@ -202,7 +203,7 @@ rule signames_to_file:
             for inF in input:
                 outF.write(str(inF) + "\n")
 
-rule sourmash_compare:
+rule sourmash_compare_scaled:
     input:
         #simulation_info = ancient(os.path.join(out_dir,"data/{siminfo}.tsv.xz")),
         #simulation_info = os.path.join(out_dir, "data/simulation-info.csv.gz"),
@@ -227,12 +228,50 @@ rule sourmash_compare:
                {params.scaled_cmd} --output-csv {output} 2> {log}
         """
  #--simreads-info-csv {input.simulation_info} \
-localrules: aggregate_sourmash_compare
-rule aggregate_sourmash_compare:
+localrules: aggregate_sourmash_compare_scaled
+rule aggregate_sourmash_compare_scaled:
     input:
         expand(os.path.join(out_dir, "compare", "{siminfo}.{alpha}-k{k}.dnainput.compare.csv.gz"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
     output:
         os.path.join(out_dir, "{basename}.dnainput.csv.gz")
+    run:
+        # aggreate all csv.gzs --> single csv
+        aggDF = pd.concat([pd.read_csv(str(csv), sep=",") for csv in input])
+        aggDF["alpha-ksize"] = aggDF["alphabet"] + "-" + aggDF["ksize"].astype(str)
+        aggDF.to_csv(str(output), index=False)
+
+rule sourmash_compare_num:
+    input:
+        #simulation_info = ancient(os.path.join(out_dir,"data/{siminfo}.tsv.xz")),
+        #simulation_info = os.path.join(out_dir, "data/simulation-info.csv.gz"),
+        siglist = os.path.join(out_dir, "compare", "{siminfo}.dnainput.siglist.txt")
+    output:
+        os.path.join(out_dir, "compare_num", "{siminfo}.{alphabet}-k{ksize}.dnainput.compare.num.csv.gz"),
+    params:
+        sig_dir = os.path.join(out_dir, "signatures"),
+        num_cmd = " --num " + " --num ".join(map(str, config["num"]))
+    threads: 1
+    resources:
+        mem_mb=lambda wildcards, attempt: attempt *50000,
+        runtime=6000,
+    log: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.log")
+    benchmark: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.benchmark")
+    conda: "envs/smash-compare.yml"
+    shell:
+        """
+        python compare-paired-sequences.v2.num.py \
+               --siglist {input.siglist} --sigdir {params.sig_dir} \
+               --alphabet {wildcards.alphabet} --ksize {wildcards.ksize} \
+               {params.num_cmd} --output-csv {output} 2> {log}
+        """
+
+ #--simreads-info-csv {input.simulation_info} \
+localrules: aggregate_sourmash_compare_num
+rule aggregate_sourmash_compare_num:
+    input:
+        expand(os.path.join(out_dir, "compare_num", "{siminfo}.{alpha}-k{k}.dnainput.compare.num.csv.gz"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
+    output:
+        os.path.join(out_dir, "{basename}.dnainput.compare-num.csv.gz")
     run:
         # aggreate all csv.gzs --> single csv
         aggDF = pd.concat([pd.read_csv(str(csv), sep=",") for csv in input])

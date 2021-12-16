@@ -6,3 +6,4 @@ output_dir: output.simreads-compare
 alphabet: "dna"
 ksize: [21,31,51]
 scaled: [1,100,1000,2000]
+num: [500,1000,2000,4000,6000,8000,10000]
