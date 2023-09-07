@@ -1,36 +1,31 @@
 import os
 import sys
 import argparse
-import glob
-import pprint
 import csv
 
-import pandas as pd
+#import pandas as pd
+import numpy as np
 
-import screed
 import sourmash
 from sourmash import load_one_signature
-from sourmash.sourmash_args import load_file_as_signatures
 
-from collections import defaultdict, namedtuple
+from collections import namedtuple
 
-NumCompareResult = namedtuple('CompareResult',
-                           'comparison_name, sig1_name, sig2_name, alphabet, ksize, num, jaccard,  num_common')
+NumScaledCompareResult = namedtuple('NumScaledCompareResult',
+                           'comparison_name, sig1_name, sig2_name, alphabet, ksize, scaled, scaled_jaccard, scaled_intersect, num, num_jaccard, num_intersect')
 
-def compare_mh(mhA, mhB, A_name, B_name, comparison_name, num, alpha, ksize):
-    # handle num
-    #if num != sigA.minhash.num:
-    #    sigA.minhash = sigA.minhash.downsample(num=num)
-    #if num != sigB.minhash.num:
-    #    sigB.minhash = sigB.minhash.downsample(num=num)
-    # compare
-    intersect_numhashes = mhA.count_common(mhB)
-    jaccard = mhA.jaccard(mhB)
-    return NumCompareResult(comparison_name, A_name, B_name, alpha, ksize, num, jaccard, intersect_numhashes)
+def compare_mh(scaled_mhA, scaled_mhB, num_mhA, num_mhB, A_name, B_name, comparison_name, num, scaled, alpha, ksize):
+    # compare scaled mh
+    scaled_intersect = scaled_mhA.count_common(scaled_mhB)
+    scaled_jaccard = scaled_mhA.jaccard(scaled_mhB)
+    num_intersect    = num_mhA.count_common(num_mhB)
+    num_jaccard = num_mhA.jaccard(num_mhB)
+    return NumScaledCompareResult(comparison_name, A_name, B_name, alpha, ksize, scaled, scaled_jaccard, scaled_intersect, num, num_jaccard, num_intersect)
 
 def main(args):
     ksize=args.ksize
     num=args.num
+    scaled_vals=args.scaled
     alphabet=args.alphabet
     if alphabet == "nucleotide":
         moltype = "DNA"
@@ -62,9 +57,10 @@ def main(args):
     #names = list(compare_info["name"])
     num_vals = num
     num_comparisons = len(compare_names)
-    output_fieldnames = NumCompareResult._fields # may need to be list?
+    output_fieldnames = NumScaledCompareResult._fields # may need to be list?
     with open(args.output_csv, 'w') as outF:
         w = csv.DictWriter(outF, fieldnames=output_fieldnames)
+        w.writeheader()
 
         for n, comparison_name in enumerate(compare_names):
             if n % 10 == 0:
@@ -73,20 +69,21 @@ def main(args):
             seq1_name = f"{comparison_name}-seq1"
             seq2_name = f"{comparison_name}-seq2"
             # select and load sigs
-            #selector = load_file_as_signatures(sigD[seq1_name], ksize=ksize, select_moltype=moltype)
-            #sig1 = next(selector)
-            #selector = load_file_as_signatures(sigD[seq2_name], ksize=ksize, select_moltype=moltype)
-            #sig2 = next(selector)
             sig1 = load_one_signature(sigD[seq1_name], ksize=ksize, select_moltype=moltype)
             sig2 = load_one_signature(sigD[seq2_name], ksize=ksize, select_moltype=moltype)
 
+            # get all hashvals for these sigs
             sig1_hashvals = sig1.minhash.hashes.keys()
+            sig1_numhashes = len(sig1_hashvals)
             sig2_hashvals = sig2.minhash.hashes.keys()
+            sig2_numhashes = len(sig2_hashvals)
             sig1_name = str(sig1).split(" ")[0]
             sig2_name = str(sig2).split(" ")[0]
 
-            minimum_hashes= min(len(sig1_hashvals), len(sig2_hashvals)) # can only compare at minimum num hashes between the two
+            minimum_hashes= min(sig1_numhashes, sig2_numhashes) # can only compare at minimum num hashes between the two
+            mean_hashes = round(np.mean([sig1_numhashes, sig2_numhashes]))
 
+            orig_scaled = max(sig1.minhash.scaled, sig2.minhash.scaled) # can only compare at largest scaled
             ## if num is not specified, use original num
             #if not num_vals:
             #    num_vals=[orig_num]
@@ -104,10 +101,47 @@ def main(args):
                 mh1_num.add_many(sig1_hashvals)
                 mh2_num.add_many(sig2_hashvals)
 
+                # find average scaled value
+                avg_scaled_for_this_nu = round(mean_hashes/nu)
+                print(f"num: {nu}, scaled: {avg_scaled_for_this_nu}")
+                if avg_scaled_for_this_nu < orig_scaled:
+                    print(f"Can't downsample: desired scaled {sc} is smaller than original scaled, {orig_scaled}. Ignoring scaled {sc}...")
+                    continue
+                    # store signature info
+
+                # downsample scaled minhashes to this scaled
+                sc_mh1 = sig1.minhash.downsample(scaled=avg_scaled_for_this_nu)
+                sc_mh2 = sig2.minhash.downsample(scaled=avg_scaled_for_this_nu)
+
+                comparison = compare_mh(sc_mh1, sc_mh2, mh1_num, mh2_num, sig1_name, sig2_name, comparison_name, nu, avg_scaled_for_this_nu, alphabet, ksize)
+                seq_comparisons.append(comparison)
+
+            # now compare at each scaled  val
+            for sc in scaled_vals:
+                if sc < orig_scaled:
+                    print(f"Can't downsample: desired scaled {sc} is smaller than original scaled, {orig_scaled}. Ignoring scaled {sc}...")
+                    continue
+                    # store signature info
+
+                # build new scaled minhashes (downsample)
+                sc_mh1 = sig1.minhash.downsample(scaled=scaled)
+                sc_mh2 = sig2.minhash.downsample(scaled=scaled)
+
+                numhashes_1 = len(sc_mh1.hashes.keys())
+                numhashes_2 = len(sc_mh2.hashes.keys())
+                import pdb;pdb.set_trace()
+                average_num = round(np.mean(numhashes_1,numhashes_2))
+
+                # build new num minhashes
+                mh1_num = sourmash.MinHash(n=average_num, ksize=ksize)
+                mh2_num = sourmash.MinHash(n=average_num, ksize=ksize)
+                mh1_num.add_many(sig1_hashvals)
+                mh2_num.add_many(sig2_hashvals)
+
                 comparison = compare_mh(mh1_num, mh2_num, sig1_name, sig2_name, comparison_name, nu, alphabet, ksize)
                 seq_comparisons.append(comparison)
 
-           # print(f"writing comparison {comparison_name}\n")
+
             for c in seq_comparisons:
                 w.writerow(c._asdict())
 
@@ -125,7 +159,8 @@ def cmdline(sys_args):
     p.add_argument("--sig-suffix", default=".sig")
     p.add_argument("--alphabet", default="protein")
     p.add_argument("--ksize", default=10, type=int)
-    p.add_argument("-s", "--num", action="append", type=int, help= "provide additional num values for downsampling")
+    p.add_argument("-n", "--num", action="append", type=int, help= "provide additional num values for downsampling")
+    p.add_argument("-s", "--scaled", action="append", type=int, help= "provide additional scaled values for downsampling")
     p.add_argument("--output-csv", required=True)
     args = p.parse_args()
     return main(args)

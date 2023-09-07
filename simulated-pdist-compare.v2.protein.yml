@@ -1,0 +1,29 @@
+# location for all generated files
+basename: simreads-compare
+
+output_dir: output.simreads-compare
+
+alphabet: "dna"
+ksize: [21,31,51]
+
+alphabets:
+  nucleotide:
+    ksizes: [21,31,51]
+    scaled: [1,100,1000,2000]
+    alpha_cmd: "--dna"
+    moltype: "dna"
+  protein:
+    ksizes: [7,8,9,10,11,12]
+    scaled: [1,100,1000,2000]
+    alpha_cmd: "--protein"
+    moltype: "protein"
+  dayhoff:
+    ksizes: [15,16,17,18,19]
+    scaled: [1,100,1000,2000]
+    alpha_cmd: "--dayhoff"
+    moltype: "dayhoff"
+  hp:
+    ksizes: [30,33,35,42]
+    scaled: [1,100,1000,2000]
+    alpha_cmd: "--hp"
+    moltype: "hp"

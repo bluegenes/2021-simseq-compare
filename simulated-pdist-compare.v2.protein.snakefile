@@ -1,10 +1,5 @@
-"""
-Author: N Tessa Pierce, UC Davis Lab for Data Intensive Biology
-Usage: Compare distance estimation on pairs of unaligned nucleotide sequences
-Installation: mamba env install -f envs/simseq-env.yml; conda activate simseq
-Run: snakemake -s simulated-pdist-compare.v2.snakefile -n
-"""
 #####
+#Compare distance estimation on pairs of unaligned nucleotide sequences
 ####
 
 # download each tsv.xz 
@@ -19,12 +14,15 @@ configfile: "simulated-pdist-compare.v2.yml"
 out_dir = config["output_dir"]
 logs_dir = out_dir + "/logs"
 basename = config.get("basename", "simreads-compare")
-scaled = config["scaled"]
-ksize = config["ksize"]
-if not isinstance(scaled, list):
-    config["scaled"] = [scaled]
-if not isinstance(ksize, list):
-    config["ksize"] = [ksize]
+
+# make sure scaled, ksize params are lists, for use later
+for alpha, info in config["alphabets"]:
+    scaled = info["scaled"]
+    ksize = info["ksize"]
+    if not isinstance(scaled, list):
+        config[alpha]["scaled"] = [scaled]
+    if not isinstance(ksize, list):
+        config["alpha"]["ksize"] = [ksize]
 
 def range_with_floats_list(start, stop, step):
     rangelist = []
@@ -35,10 +33,7 @@ def range_with_floats_list(start, stop, step):
     return rangelist
  
 # make variables that correspond to the simulated distances
-
-## FOCUS ON SHORTER DISTANCES FOR NUCL
-#sim_distances = range_with_floats_list(0.05, 1.00, 0.05)
-sim_distances = range_with_floats_list(0.05, 0.3, 0.05)
+sim_distances = range_with_floats_list(0.05, 1.00, 0.05)
 f1_seednums=[*range(1, 201)]
 f2_seednums=[*range(201, 401)]
 f3_seednums=[*range(401, 601)]
@@ -59,23 +54,21 @@ f1_siminfo = expand("data-d{d}-f1-{model}", d = sim_distances, model=evolmodels)
 f2_siminfo = expand("data-d{d}-f2-{model}", d = sim_distances, model=evolmodels)
 f3_siminfo = expand("data-d{d}-f3-{model}", d = sim_distances, model=evolmodels)
 
-simulation_info = f1_siminfo #+ f2_siminfo + f3_siminfo
+simulation_info = f1_siminfo + f2_siminfo + f3_siminfo
 
 seedinfo =  { key: f1_seednums for key in f1_siminfo}
 f2_seedinfo =  { key: f2_seednums for key in f2_siminfo}
 f3_seedinfo =  { key: f3_seednums for key in f3_siminfo}
-#seedinfo.update(f2_seedinfo)
-#seedinfo.update(f3_seedinfo)
+seedinfo.update(f2_seedinfo)
+seedinfo.update(f3_seedinfo)
 
 # just do nucl input
-FASTA_TYPES = ["dnainput"]
+FASTA_TYPES = ["dnainput", "prodigal"]
 
 rule all: 
     input:
         expand(os.path.join(out_dir, "compare", "{siminfo}.{fasta_type}.fastalist.txt"), siminfo=simulation_info, fasta_type=FASTA_TYPES),
-        #os.path.join(out_dir, f"{basename}.dnainput.csv.gz"),
-        os.path.join(out_dir, f"{basename}.dnainput.compare-num.csv.gz"),
-        #os.path.join(out_dir, f"{basename}.dnainput.compare-scaled-x-num.csv.gz")
+        expand(os.path.join(out_dir, f"{basename}.{fasta_type}.csv.gz", fasta_type=FASTA_TYPES)
         #expand(os.path.join(out_dir, "compare", "{siminfo}.{fasta_type}.compare.csv.gz"), siminfo=simulation_info, fasta_type = FASTA_TYPES)
 
 rule download_tsv:
@@ -177,19 +170,40 @@ def make_param_str(ksizes, scaled):
     scaled = min(scaled) #take minimum value of scaled list
     return f"{ks},scaled={scaled},abund"
 
-rule sourmash_sketch:
+# currently, no translation
+rule sourmash_sketch_dna:
     input:
         ancient(os.path.join(out_dir, "data/simreads", "{siminfo}-seed{seed}-seq{seq}.fasta")),
     output:
         os.path.join(out_dir, "signatures", "{siminfo}-seed{seed}-seq{seq}.sig"),
     params:
-        sketch_params=make_param_str(config["ksize"], config["scaled"]),
+        sketch_params=lambda w: make_param_str(config["alphabets"]["nucleotide"]["ksize"], config["alphabets"]["nucleotide"]["scaled"]),
         signame = lambda w: f"{w.siminfo}-seed{w.seed}-seq{w.seq}"
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: attempt *1000,
         runtime=1200,
     log: os.path.join(logs_dir, "sourmash_sketch", "{siminfo}-seed{seed}-seq{seq}.sketch.log")
+    benchmark: os.path.join(logs_dir, "sourmash_sketch", "{siminfo}-seed{seed}-seq{seq}.sketch.benchmark")
+    conda: "envs/smash-compare.yml"
+    shell:
+        """
+        sourmash sketch dna -p {params.sketch_params} -o {output} --name {params.signame:q} {input} 2> {log}
+        """
+
+#rule sourmash_sketch_prodigal:
+#    input:
+#        ancient(os.path.join(out_dir, "data/prodigal", "{siminfo}-seed{seed}-seq{seq}.prodigal.fasta")),
+#    output:
+#        os.path.join(out_dir, "prodigal", "signatures", "{siminfo}-seed{seed}-seq{seq}.sig"),
+#    params:
+#        sketch_params=make_param_str(config["ksize"], config["scaled"]),
+#        signame = lambda w: f"{w.siminfo}-seed{w.seed}-seq{w.seq}"
+#    threads: 1
+#    resources:
+#        mem_mb=lambda wildcards, attempt: attempt *1000,
+#        runtime=1200,
+#    log: os.path.join(logs_dir, "sourmash_sketch", "{siminfo}-seed{seed}-seq{seq}.sketch.log")
     benchmark: os.path.join(logs_dir, "sourmash_sketch", "{siminfo}-seed{seed}-seq{seq}.sketch.benchmark")
     conda: "envs/smash-compare.yml"
     shell:
@@ -207,22 +221,20 @@ rule signames_to_file:
             for inF in input:
                 outF.write(str(inF) + "\n")
 
-rule sourmash_compare_scaled:
+rule sourmash_compare:
     input:
-        #simulation_info = ancient(os.path.join(out_dir,"data/{siminfo}.tsv.xz")),
-        #simulation_info = os.path.join(out_dir, "data/simulation-info.csv.gz"),
-        siglist = os.path.join(out_dir, "compare", "{siminfo}.dnainput.siglist.txt")
+        siglist = os.path.join(out_dir, "compare", "{siminfo}.{fasta_type}.siglist.txt")
     output:
-        os.path.join(out_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.compare.csv.gz"),
+        os.path.join(out_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.{fasta_type}.compare.csv.gz"),
     params:
         sig_dir = os.path.join(out_dir, "signatures"),
-        scaled_cmd = " --scaled " + " --scaled ".join(map(str, config["scaled"]))
+        scaled_cmd = lambda w: " --scaled " + " --scaled ".join(map(str, config[w.alphabet]["scaled"]))
     threads: 1
     resources:
         mem_mb=lambda wildcards, attempt: attempt *50000,
         runtime=6000,
-    log: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.log")
-    benchmark: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.benchmark")
+    log: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.{fasta_type}.log")
+    benchmark: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.{fasta_type}.benchmark")
     conda: "envs/smash-compare.yml"
     shell:
         """
@@ -231,93 +243,16 @@ rule sourmash_compare_scaled:
                --alphabet {wildcards.alphabet} --ksize {wildcards.ksize} \
                {params.scaled_cmd} --output-csv {output} 2> {log}
         """
- #--simreads-info-csv {input.simulation_info} \
-localrules: aggregate_sourmash_compare_scaled
-rule aggregate_sourmash_compare_scaled:
+
+localrules: aggregate_sourmash_compare
+rule aggregate_sourmash_compare:
     input:
-        expand(os.path.join(out_dir, "compare", "{siminfo}.{alpha}-k{k}.dnainput.compare.csv.gz"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
+        expand(os.path.join(out_dir, "compare", "{siminfo}.{alpha}-k{k}.{{fasta_type}}.compare.csv.gz"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
     output:
-        os.path.join(out_dir, "{basename}.dnainput.csv.gz")
+        os.path.join(out_dir, "{basename}.{fasta-type}.csv.gz")
     run:
         # aggreate all csv.gzs --> single csv
         aggDF = pd.concat([pd.read_csv(str(csv), sep=",") for csv in input])
         aggDF["alpha-ksize"] = aggDF["alphabet"] + "-" + aggDF["ksize"].astype(str)
         aggDF.to_csv(str(output), index=False)
-
-rule sourmash_compare_num:
-    input:
-        #simulation_info = ancient(os.path.join(out_dir,"data/{siminfo}.tsv.xz")),
-        #simulation_info = os.path.join(out_dir, "data/simulation-info.csv.gz"),
-        siglist = os.path.join(out_dir, "compare", "{siminfo}.dnainput.siglist.txt")
-    output:
-        os.path.join(out_dir, "compare_num", "{siminfo}.{alphabet}-k{ksize}.dnainput.compare.num.csv"),
-    params:
-        sig_dir = os.path.join(out_dir, "signatures"),
-        num_cmd = " --num " + " --num ".join(map(str, config["num"]))
-    threads: 1
-    resources:
-        mem_mb=lambda wildcards, attempt: attempt *50000,
-        runtime=6000,
-    log: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.log")
-    benchmark: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.benchmark")
-    conda: "envs/smash-compare.yml"
-    shell:
-        """
-        python compare-paired-sequences.v2.num.py \
-               --siglist {input.siglist} --sigdir {params.sig_dir} \
-               --alphabet {wildcards.alphabet} --ksize {wildcards.ksize} \
-               {params.num_cmd} --output-csv {output} 2> {log}
-        """
-
- #--simreads-info-csv {input.simulation_info} \
-localrules: aggregate_sourmash_compare_num
-rule aggregate_sourmash_compare_num:
-    input:
-        expand(os.path.join(out_dir, "compare_num", "{siminfo}.{alpha}-k{k}.dnainput.compare.num.csv"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
-    output:
-        os.path.join(out_dir, "{basename}.dnainput.compare-num.csv.gz")
-    run:
-        # aggreate all csv.gzs --> single csv
-        aggDF = pd.concat([pd.read_csv(str(csv), sep=",", header=None) for csv in input])
-        aggDF.columns = ['comparison_name', 'sig1_name', 'sig2_name', 'alphabet', 'ksize', 'num', 'jaccard',  'num_common']
-        aggDF["alpha-ksize"] = aggDF["alphabet"] + "-k" + aggDF["ksize"].astype(str)
-        aggDF.to_csv(str(output), index=False)
-
-#rule sourmash_compare_scaled_x_num:
-#    input:
-#        #simulation_info = ancient(os.path.join(out_dir,"data/{siminfo}.tsv.xz")),
-#        #simulation_info = os.path.join(out_dir, "data/simulation-info.csv.gz"),
-#        siglist = os.path.join(out_dir, "compare", "{siminfo}.dnainput.siglist.txt")
-#    output:
-#        os.path.join(out_dir, "compare_num", "{siminfo}.{alphabet}-k{ksize}.dnainput.compare.scaled-x-num.csv"),
-#    params:
-#        sig_dir = os.path.join(out_dir, "signatures"),
-#        num_cmd = " --num " + " --num ".join(map(str, config["num"]))
-#    threads: 1
-#    resources:
-#        mem_mb=lambda wildcards, attempt: attempt *50000,
-#        runtime=6000,
-#    log: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.log")
-#    benchmark: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.benchmark")
-#    conda: "envs/smash-compare.yml"
-#    shell:
-#        """
-#        python compare-paired-sequences.v2.scaled-vs-num.py \
-#               --siglist {input.siglist} --sigdir {params.sig_dir} \
-#               --alphabet {wildcards.alphabet} --ksize {wildcards.ksize} \
-#               {params.num_cmd} --output-csv {output} 2> {log}
-#        """
-#
-# #--simreads-info-csv {input.simulation_info} \
-#localrules: aggregate_sourmash_compare_num
-#rule aggregate_sourmash_compare_scaled_x_num:
-#    input:
-#        expand(os.path.join(out_dir, "compare_num", "{siminfo}.{alpha}-k{k}.dnainput.compare.scaled-x-num.csv"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
-#    output:
-#        os.path.join(out_dir, "{basename}.dnainput.compare-scaled-x-num.csv.gz")
-#    run:
-#        # aggreate all csv.gzs --> single csv
-#        aggDF = pd.concat([pd.read_csv(str(csv), sep=",") for csv in input])
-#        aggDF["alpha-ksize"] = aggDF["alphabet"] + "-" + aggDF["ksize"].astype(str)
-#        aggDF.to_csv(str(output), index=False)
 

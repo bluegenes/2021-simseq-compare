@@ -14,19 +14,16 @@ from sourmash.sourmash_args import load_file_as_signatures
 
 from collections import defaultdict, namedtuple
 
-NumCompareResult = namedtuple('CompareResult',
-                           'comparison_name, sig1_name, sig2_name, alphabet, ksize, num, jaccard,  num_common')
+NumScaledCompareResult = namedtuple('NumScaledCompareResult',
+                           'comparison_name, sig1_name, sig2_name, alphabet, ksize, scaled, scaled_jaccard, scaled_intersect, num, num_jaccard, num_intersect')
 
-def compare_mh(mhA, mhB, A_name, B_name, comparison_name, num, alpha, ksize):
-    # handle num
-    #if num != sigA.minhash.num:
-    #    sigA.minhash = sigA.minhash.downsample(num=num)
-    #if num != sigB.minhash.num:
-    #    sigB.minhash = sigB.minhash.downsample(num=num)
-    # compare
-    intersect_numhashes = mhA.count_common(mhB)
-    jaccard = mhA.jaccard(mhB)
-    return NumCompareResult(comparison_name, A_name, B_name, alpha, ksize, num, jaccard, intersect_numhashes)
+def compare_mh(scaled_mhA, scaled_mhB, num_mhA, num_mhB, A_name, B_name, comparison_name, num, scaled, alpha, ksize):
+    # compare scaled mh
+    scaled_intersect = scaled_mhA.count_common(scaled_mhB)
+    scaled_jaccard = scaled_mhA.jaccard(scaled_mhB)
+    num_intersect    = num_mhA.count_common(num_mhB)
+    num_jaccard = num_mhA.jaccard(num_mhB)
+    return NumCompareResult(comparison_name, A_name, B_name, alpha, ksize, scaled, scaled_jaccard, scaled_intersect, num, num_jaccard, num_intersect)
 
 def main(args):
     ksize=args.ksize
@@ -80,6 +77,7 @@ def main(args):
             sig1 = load_one_signature(sigD[seq1_name], ksize=ksize, select_moltype=moltype)
             sig2 = load_one_signature(sigD[seq2_name], ksize=ksize, select_moltype=moltype)
 
+            # get all hashvals for these sigs
             sig1_hashvals = sig1.minhash.hashes.keys()
             sig2_hashvals = sig2.minhash.hashes.keys()
             sig1_name = str(sig1).split(" ")[0]
@@ -87,20 +85,33 @@ def main(args):
 
             minimum_hashes= min(len(sig1_hashvals), len(sig2_hashvals)) # can only compare at minimum num hashes between the two
 
+            orig_scaled = max(sig1.minhash.scaled, sig2.minhash.scaled) # can only compare at largest scaled
             ## if num is not specified, use original num
             #if not num_vals:
             #    num_vals=[orig_num]
 
             # compare at each num val
             seq_comparisons = []
-            for nu in num_vals:
-                if nu > minimum_hashes:
-                    print(f"Desired num hashes {nu} is greater than the number of hashes in the original sig. Can't extract; Ignoring num {nu}...")
+            for sc in scaled_vals:
+                if sc < orig_scaled:
+                    print(f"Can't downsample: desired scaled {sc} is smaller than original scaled, {orig_scaled}. Ignoring scaled {sc}...")
                     continue
                     # store signature info
-                # convert to num minhashes
-                mh1_num = sourmash.MinHash(n=nu, ksize=ksize)
-                mh2_num = sourmash.MinHash(n=nu, ksize=ksize)
+
+                # build new scaled minhashes (downsample)
+                if scaled != sigA.minhash.scaled:
+                    sc_mh1 = sigA.minhash.downsample(scaled=scaled)
+                if scaled != sigB.minhash.scaled:
+                    sc_mh2 = sigB.minhash.downsample(scaled=scaled)
+
+                numhashes_1 = len(sc_mh1.hashes.keys())
+                numhashes_2 = len(sc_mh2.hashes.keys())
+                import pdb;pdb.set_trace()
+                average_num = round(np.mean(numhashes_1,numhashes_2))
+
+                # build new num minhashes
+                mh1_num = sourmash.MinHash(n=average_num, ksize=ksize)
+                mh2_num = sourmash.MinHash(n=average_num, ksize=ksize)
                 mh1_num.add_many(sig1_hashvals)
                 mh2_num.add_many(sig2_hashvals)
 

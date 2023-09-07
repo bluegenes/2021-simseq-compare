@@ -1,0 +1,10 @@
+name: pyani3
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - pyani
+  - pip
+  - pip:
+    - git+https://github.com/widdowquinn/pyani@master

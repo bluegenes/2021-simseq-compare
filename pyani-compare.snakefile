@@ -1,71 +1,19 @@
 """
 Author: N Tessa Pierce, UC Davis Lab for Data Intensive Biology
-Usage: Compare distance estimation on pairs of unaligned nucleotide sequences
+Usage: Use pyANI to Compare distance estimation on pairs of unaligned nucleotide sequences
 Installation: mamba env install -f envs/simseq-env.yml; conda activate simseq
-Run: snakemake -s simulated-pdist-compare.v2.snakefile -n
+Run: snakemake -s pyani-compare.snakefile -n
 """
 #####
 ####
 
-# download each tsv.xz 
-# split simulation info --> simulation csv
-# split fastas --> fasta files
-# sketch each fasta
-# compare all fastas at each alpha-ksize
-# agg all alpha-ksize comparisons --> csv gz
 import pandas as pd
 
-configfile: "simulated-pdist-compare.v2.yml"
+configfile: conf/pyani-compare.yml
 out_dir = config["output_dir"]
 logs_dir = out_dir + "/logs"
 basename = config.get("basename", "simreads-compare")
-scaled = config["scaled"]
-ksize = config["ksize"]
-if not isinstance(scaled, list):
-    config["scaled"] = [scaled]
-if not isinstance(ksize, list):
-    config["ksize"] = [ksize]
 
-def range_with_floats_list(start, stop, step):
-    rangelist = []
-    while stop > start:
-        val = round(start, 2)
-        rangelist.append(format(val, '.2f'))
-        start += step
-    return rangelist
- 
-# make variables that correspond to the simulated distances
-
-## FOCUS ON SHORTER DISTANCES FOR NUCL
-#sim_distances = range_with_floats_list(0.05, 1.00, 0.05)
-sim_distances = range_with_floats_list(0.05, 0.3, 0.05)
-f1_seednums=[*range(1, 201)]
-f2_seednums=[*range(201, 401)]
-f3_seednums=[*range(401, 601)]
-
-# frequencies
-#f1: equal frequencies, i.e. freq(A) = freq(C) = freq(G) = freq(T) = 0.25,
-#f2: GC-rich, i.e. freq(A) = 0.1, freq(C) = 0.3, freq(G) = 0.4, freq(T) = 0.2,
-#f3: AT-rich, i.e. freq(A) = freq(T) = 0.4, freq(C) = freq(G) = 0.1.
-nt_frequencies = ["f1", "f2", "f3"]
-# evolutionary model
-# model parameters (i.e. GTR: six relative rates of nucleotide substitution; GTR+Γ: six rates and one Γ shape parameter)
-# nogam = GTR; gamma = GTR + Γ  
-evolmodels = ["nogam", "gamma"]
-
-simulation_info = expand("data-d{d}-{freq}-{model}", d = sim_distances, freq =nt_frequencies, model=evolmodels)
-
-f1_siminfo = expand("data-d{d}-f1-{model}", d = sim_distances, model=evolmodels)
-f2_siminfo = expand("data-d{d}-f2-{model}", d = sim_distances, model=evolmodels)
-f3_siminfo = expand("data-d{d}-f3-{model}", d = sim_distances, model=evolmodels)
-
-simulation_info = f1_siminfo #+ f2_siminfo + f3_siminfo
-
-seedinfo =  { key: f1_seednums for key in f1_siminfo}
-f2_seedinfo =  { key: f2_seednums for key in f2_siminfo}
-f3_seedinfo =  { key: f3_seednums for key in f3_siminfo}
-#seedinfo.update(f2_seedinfo)
-#seedinfo.update(f3_seedinfo)
 
 # just do nucl input
 FASTA_TYPES = ["dnainput"]
@@ -73,9 +21,7 @@ FASTA_TYPES = ["dnainput"]
 rule all: 
     input:
         expand(os.path.join(out_dir, "compare", "{siminfo}.{fasta_type}.fastalist.txt"), siminfo=simulation_info, fasta_type=FASTA_TYPES),
-        #os.path.join(out_dir, f"{basename}.dnainput.csv.gz"),
-        os.path.join(out_dir, f"{basename}.dnainput.compare-num.csv.gz"),
-        #os.path.join(out_dir, f"{basename}.dnainput.compare-scaled-x-num.csv.gz")
+        os.path.join(out_dir, f"{basename}.dnainput.csv.gz")
         #expand(os.path.join(out_dir, "compare", "{siminfo}.{fasta_type}.compare.csv.gz"), siminfo=simulation_info, fasta_type = FASTA_TYPES)
 
 rule download_tsv:
@@ -207,7 +153,7 @@ rule signames_to_file:
             for inF in input:
                 outF.write(str(inF) + "\n")
 
-rule sourmash_compare_scaled:
+rule sourmash_compare:
     input:
         #simulation_info = ancient(os.path.join(out_dir,"data/{siminfo}.tsv.xz")),
         #simulation_info = os.path.join(out_dir, "data/simulation-info.csv.gz"),
@@ -232,8 +178,8 @@ rule sourmash_compare_scaled:
                {params.scaled_cmd} --output-csv {output} 2> {log}
         """
  #--simreads-info-csv {input.simulation_info} \
-localrules: aggregate_sourmash_compare_scaled
-rule aggregate_sourmash_compare_scaled:
+localrules: aggregate_sourmash_compare
+rule aggregate_sourmash_compare:
     input:
         expand(os.path.join(out_dir, "compare", "{siminfo}.{alpha}-k{k}.dnainput.compare.csv.gz"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
     output:
@@ -243,81 +189,4 @@ rule aggregate_sourmash_compare_scaled:
         aggDF = pd.concat([pd.read_csv(str(csv), sep=",") for csv in input])
         aggDF["alpha-ksize"] = aggDF["alphabet"] + "-" + aggDF["ksize"].astype(str)
         aggDF.to_csv(str(output), index=False)
-
-rule sourmash_compare_num:
-    input:
-        #simulation_info = ancient(os.path.join(out_dir,"data/{siminfo}.tsv.xz")),
-        #simulation_info = os.path.join(out_dir, "data/simulation-info.csv.gz"),
-        siglist = os.path.join(out_dir, "compare", "{siminfo}.dnainput.siglist.txt")
-    output:
-        os.path.join(out_dir, "compare_num", "{siminfo}.{alphabet}-k{ksize}.dnainput.compare.num.csv"),
-    params:
-        sig_dir = os.path.join(out_dir, "signatures"),
-        num_cmd = " --num " + " --num ".join(map(str, config["num"]))
-    threads: 1
-    resources:
-        mem_mb=lambda wildcards, attempt: attempt *50000,
-        runtime=6000,
-    log: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.log")
-    benchmark: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.benchmark")
-    conda: "envs/smash-compare.yml"
-    shell:
-        """
-        python compare-paired-sequences.v2.num.py \
-               --siglist {input.siglist} --sigdir {params.sig_dir} \
-               --alphabet {wildcards.alphabet} --ksize {wildcards.ksize} \
-               {params.num_cmd} --output-csv {output} 2> {log}
-        """
-
- #--simreads-info-csv {input.simulation_info} \
-localrules: aggregate_sourmash_compare_num
-rule aggregate_sourmash_compare_num:
-    input:
-        expand(os.path.join(out_dir, "compare_num", "{siminfo}.{alpha}-k{k}.dnainput.compare.num.csv"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
-    output:
-        os.path.join(out_dir, "{basename}.dnainput.compare-num.csv.gz")
-    run:
-        # aggreate all csv.gzs --> single csv
-        aggDF = pd.concat([pd.read_csv(str(csv), sep=",", header=None) for csv in input])
-        aggDF.columns = ['comparison_name', 'sig1_name', 'sig2_name', 'alphabet', 'ksize', 'num', 'jaccard',  'num_common']
-        aggDF["alpha-ksize"] = aggDF["alphabet"] + "-k" + aggDF["ksize"].astype(str)
-        aggDF.to_csv(str(output), index=False)
-
-#rule sourmash_compare_scaled_x_num:
-#    input:
-#        #simulation_info = ancient(os.path.join(out_dir,"data/{siminfo}.tsv.xz")),
-#        #simulation_info = os.path.join(out_dir, "data/simulation-info.csv.gz"),
-#        siglist = os.path.join(out_dir, "compare", "{siminfo}.dnainput.siglist.txt")
-#    output:
-#        os.path.join(out_dir, "compare_num", "{siminfo}.{alphabet}-k{ksize}.dnainput.compare.scaled-x-num.csv"),
-#    params:
-#        sig_dir = os.path.join(out_dir, "signatures"),
-#        num_cmd = " --num " + " --num ".join(map(str, config["num"]))
-#    threads: 1
-#    resources:
-#        mem_mb=lambda wildcards, attempt: attempt *50000,
-#        runtime=6000,
-#    log: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.log")
-#    benchmark: os.path.join(logs_dir, "compare", "{siminfo}.{alphabet}-k{ksize}.dnainput.benchmark")
-#    conda: "envs/smash-compare.yml"
-#    shell:
-#        """
-#        python compare-paired-sequences.v2.scaled-vs-num.py \
-#               --siglist {input.siglist} --sigdir {params.sig_dir} \
-#               --alphabet {wildcards.alphabet} --ksize {wildcards.ksize} \
-#               {params.num_cmd} --output-csv {output} 2> {log}
-#        """
-#
-# #--simreads-info-csv {input.simulation_info} \
-#localrules: aggregate_sourmash_compare_num
-#rule aggregate_sourmash_compare_scaled_x_num:
-#    input:
-#        expand(os.path.join(out_dir, "compare_num", "{siminfo}.{alpha}-k{k}.dnainput.compare.scaled-x-num.csv"), siminfo=simulation_info, alpha=config["alphabet"], k=config["ksize"]),
-#    output:
-#        os.path.join(out_dir, "{basename}.dnainput.compare-scaled-x-num.csv.gz")
-#    run:
-#        # aggreate all csv.gzs --> single csv
-#        aggDF = pd.concat([pd.read_csv(str(csv), sep=",") for csv in input])
-#        aggDF["alpha-ksize"] = aggDF["alphabet"] + "-" + aggDF["ksize"].astype(str)
-#        aggDF.to_csv(str(output), index=False)
 
